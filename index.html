@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Выбор времени</title>
+    <title>Time Picker</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -27,7 +27,7 @@
             user-select: none;
         }
 
-        h2 { margin-bottom: 5px; font-size: 20px; }
+        h2 { margin-bottom: 5px; font-size: 20px; text-align: center; }
         p { color: var(--hint-color); font-size: 14px; margin-bottom: 20px; text-align: center; }
 
         .time-grid {
@@ -65,60 +65,85 @@
 </head>
 <body>
 
-    <h2>Выберите время</h2>
-    <p>В какой час присылать карту дня?<br>(по вашему местному времени)</p>
+    <h2 id="title"></h2>
+    <p id="description"></p>
 
-    <div class="time-grid" id="timeGrid">
-        <!-- Кнопки от 00 до 23 сгенерируются тут -->
-    </div>
+    <div class="time-grid" id="timeGrid"></div>
 
     <div class="footer-info" id="tzInfo"></div>
 
     <script>
-    const tg = window.Telegram.WebApp;
-    const grid = document.getElementById('timeGrid');
-    let selectedHour = null;
-
-    tg.expand();
-
-    for (let i = 0; i < 24; i++) {
-        const hour = i < 10 ? '0' + i : i;
-        const card = document.createElement('div');
-        card.className = 'hour-card';
-        card.innerText = `${hour}:00`;
-        card.onclick = () => selectHour(i, card);
-        grid.appendChild(card);
-    }
-
-    function selectHour(hour, element) {
-        document.querySelectorAll('.hour-card').forEach(el => el.classList.remove('active'));
-        element.classList.add('active');
-        selectedHour = hour;
-
-        tg.MainButton.text = `ПОЛУЧАТЬ В ${hour}:00`;
-        tg.MainButton.show();
-    }
-
-    tg.onEvent('mainButtonClicked', function() {
-        // 1. Получаем смещение пользователя в минутах (например, для Берлина это -60, для МСК -180)
-        const offsetMin = new Date().getTimezoneOffset(); 
+        const tg = window.Telegram.WebApp;
+        const userLang = tg.initDataUnsafe?.user?.language_code || 'en';
         
-        // 2. Вычисляем время в UTC (выбранный час + смещение/60)
-        let utcHour = selectedHour + (offsetMin / 60);
-        
-        // 3. Переводим UTC в МСК (UTC + 3)
-        let mskHour = Math.floor(utcHour + 3);
-        
-        // Корректируем, если вышли за пределы 0-23 (например, если в МСК уже следующий день)
-        mskHour = (mskHour % 24 + 24) % 24;
-
-        const data = {
-            local_hour: selectedHour,
-            msk_hour: mskHour
+        // Словарик переводов
+        const i18n = {
+            ru: {
+                title: "Выберите время",
+                desc: "В какой час присылать карту дня?<br>(по вашему местному времени)",
+                tz: "Ваш пояс",
+                btn: "ПОЛУЧАТЬ В"
+            },
+            en: {
+                title: "Select Time",
+                desc: "At what hour should I send the card?<br>(your local time)",
+                tz: "Your timezone",
+                btn: "RECEIVE AT"
+            }
         };
 
-        tg.sendData(JSON.stringify(data));
-    });
-</script>
+        // Определяем язык (если не русский, то английский)
+        const lang = userLang.startsWith('ru') ? 'ru' : 'en';
+        const texts = i18n[lang];
+
+        // Устанавливаем тексты на страницу
+        document.getElementById('title').innerText = texts.title;
+        document.getElementById('description').innerHTML = texts.desc;
+
+        const grid = document.getElementById('timeGrid');
+        const tzInfo = document.getElementById('tzInfo');
+        let selectedHour = null;
+
+        tg.expand();
+
+        // Часовой пояс
+        const offsetMin = new Date().getTimezoneOffset();
+        const offsetHours = -offsetMin / 60;
+        tzInfo.innerText = `${texts.tz}: GMT${offsetHours >= 0 ? '+' : ''}${offsetHours}`;
+
+        // Сетка часов
+        for (let i = 0; i < 24; i++) {
+            const hour = i < 10 ? '0' + i : i;
+            const card = document.createElement('div');
+            card.className = 'hour-card';
+            card.innerText = `${hour}:00`;
+            card.onclick = () => selectHour(i, card);
+            grid.appendChild(card);
+        }
+
+        function selectHour(hour, element) {
+            document.querySelectorAll('.hour-card').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            selectedHour = hour;
+
+            tg.MainButton.text = `${texts.btn} ${hour}:00`;
+            tg.MainButton.show();
+        }
+
+        tg.onEvent('mainButtonClicked', function() {
+            // Расчет МСК времени
+            let utcHour = selectedHour + (offsetMin / 60);
+            let mskHour = Math.floor(utcHour + 3);
+            mskHour = (mskHour % 24 + 24) % 24;
+
+            const data = {
+                local_hour: selectedHour,
+                msk_hour: mskHour,
+                lang: lang // Отправляем язык боту, чтобы он ответил на нужной языке
+            };
+
+            tg.sendData(JSON.stringify(data));
+        });
+    </script>
 </body>
 </html>
