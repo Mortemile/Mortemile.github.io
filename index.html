@@ -74,7 +74,14 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-        const userLang = (tg.initDataUnsafe?.user?.language_code || 'en').toLowerCase();
+        //const userLang = (tg.initDataUnsafe?.user?.language_code || 'en').toLowerCase();
+        // Расширяем приложение
+        tg.expand();
+        
+        // Пробуем получить язык разными способами
+        const userLang = tg.initDataUnsafe?.user?.language_code || 
+                         (tg.initData ? new URLSearchParams(tg.initData).get('user')?.match(/"language_code":"([^"]+)"/)?.[1] : null) || 
+                         'en';
         
         // Словарик переводов
         const i18n = {
