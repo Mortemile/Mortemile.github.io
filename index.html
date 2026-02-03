@@ -74,7 +74,7 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-        const userLang = tg.initDataUnsafe?.user?.language_code || 'en';
+        const userLang = (tg.initDataUnsafe?.user?.language_code || 'en').toLowerCase();
         
         // Словарик переводов
         const i18n = {
@@ -93,7 +93,7 @@
         };
 
         // Определяем язык (если не русский, то английский)
-        const lang = userLang.startsWith('ru') ? 'ru' : 'en';
+        const lang = (userLang && userLang.startsWith('ru')) ? 'ru' : 'en';
         const texts = i18n[lang];
 
         // Устанавливаем тексты на страницу
