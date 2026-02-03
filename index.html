@@ -74,14 +74,39 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-        //const userLang = (tg.initDataUnsafe?.user?.language_code || 'en').toLowerCase();
+        
         // Расширяем приложение
         tg.expand();
         
-        // Пробуем получить язык разными способами
-        const userLang = tg.initDataUnsafe?.user?.language_code || 
-                         (tg.initData ? new URLSearchParams(tg.initData).get('user')?.match(/"language_code":"([^"]+)"/)?.[1] : null) || 
-                         'en';
+        // Функция безопасного получения языка
+        function getUserLanguage() {
+            // 1. Пробуем из initDataUnsafe
+            if (tg.initDataUnsafe?.user?.language_code) {
+                return tg.initDataUnsafe.user.language_code.toLowerCase();
+            }
+            
+            // 2. Пробуем распарсить из initData
+            if (tg.initData) {
+                try {
+                    const params = new URLSearchParams(tg.initData);
+                    const userJson = params.get('user');
+                    if (userJson) {
+                        const user = JSON.parse(userJson);
+                        if (user.language_code) {
+                            return user.language_code.toLowerCase();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing initData:', e);
+                }
+            }
+            
+            // 3. Запасной вариант - язык браузера
+            const browserLang = navigator.language || navigator.userLanguage;
+            return browserLang ? browserLang.split('-')[0].toLowerCase() : 'en';
+        }
+        
+        const userLang = getUserLanguage();
         
         // Словарик переводов
         const i18n = {
@@ -98,26 +123,24 @@
                 btn: "RECEIVE AT"
             }
         };
-
-        // Определяем язык (если не русский, то английский)
-        const lang = (userLang && userLang.startsWith('ru')) ? 'ru' : 'en';
+        
+        // Определяем язык
+        const lang = userLang.startsWith('ru') ? 'ru' : 'en';
         const texts = i18n[lang];
-
+        
         // Устанавливаем тексты на страницу
         document.getElementById('title').innerText = texts.title;
         document.getElementById('description').innerHTML = texts.desc;
-
+        
         const grid = document.getElementById('timeGrid');
         const tzInfo = document.getElementById('tzInfo');
         let selectedHour = null;
-
-        tg.expand();
-
+        
         // Часовой пояс
         const offsetMin = new Date().getTimezoneOffset();
         const offsetHours = -offsetMin / 60;
         tzInfo.innerText = `${texts.tz}: GMT${offsetHours >= 0 ? '+' : ''}${offsetHours}`;
-
+        
         // Сетка часов
         for (let i = 0; i < 24; i++) {
             const hour = i < 10 ? '0' + i : i;
@@ -127,28 +150,26 @@
             card.onclick = () => selectHour(i, card);
             grid.appendChild(card);
         }
-
+        
         function selectHour(hour, element) {
             document.querySelectorAll('.hour-card').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
             selectedHour = hour;
-
             tg.MainButton.text = `${texts.btn} ${hour}:00`;
             tg.MainButton.show();
         }
-
+        
         tg.onEvent('mainButtonClicked', function() {
             // Расчет МСК времени
             let utcHour = selectedHour + (offsetMin / 60);
             let mskHour = Math.floor(utcHour + 3);
             mskHour = (mskHour % 24 + 24) % 24;
-
+            
             const data = {
                 local_hour: selectedHour,
                 msk_hour: mskHour,
-                lang: lang // Отправляем язык боту, чтобы он ответил на нужной языке
+                lang: lang
             };
-
             tg.sendData(JSON.stringify(data));
         });
     </script>
