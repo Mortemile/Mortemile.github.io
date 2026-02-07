@@ -13,6 +13,7 @@
             --button-color: var(--tg-theme-button-color, #248bcf);
             --button-text: var(--tg-theme-button-text-color, #ffffff);
             --secondary-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            --destructive-color: #ff3b30;
         }
 
         body {
@@ -36,6 +37,7 @@
             gap: 10px;
             width: 100%;
             max-width: 400px;
+            margin-bottom: 20px;
         }
 
         .hour-card {
@@ -56,6 +58,29 @@
             color: var(--button-text);
         }
 
+        .delete-button {
+            background-color: var(--destructive-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 15px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            max-width: 400px;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+        }
+
+        .delete-button:hover {
+            opacity: 0.9;
+        }
+
+        .delete-button:active {
+            transform: scale(0.98);
+        }
+
         .footer-info {
             margin-top: 30px;
             font-size: 12px;
@@ -69,6 +94,8 @@
     <p id="description"></p>
 
     <div class="time-grid" id="timeGrid"></div>
+    
+    <button class="delete-button" id="deleteButton"></button>
 
     <div class="footer-info" id="tzInfo"></div>
 
@@ -114,13 +141,15 @@
                 title: "Выберите время",
                 desc: "В какой час присылать карту дня?<br>(по вашему местному времени)",
                 tz: "Ваш пояс",
-                btn: "ПОЛУЧАТЬ В"
+                btn: "ПОЛУЧАТЬ В",
+                deleteBtn: "Удалить время рассылки"
             },
             en: {
                 title: "Select Time",
                 desc: "At what hour should I send the card?<br>(your local time)",
                 tz: "Your timezone",
-                btn: "RECEIVE AT"
+                btn: "RECEIVE AT",
+                deleteBtn: "Delete schedule time"
             }
         };
         
@@ -131,9 +160,11 @@
         // Устанавливаем тексты на страницу
         document.getElementById('title').innerText = texts.title;
         document.getElementById('description').innerHTML = texts.desc;
+        document.getElementById('deleteButton').innerText = texts.deleteBtn;
         
         const grid = document.getElementById('timeGrid');
         const tzInfo = document.getElementById('tzInfo');
+        const deleteButton = document.getElementById('deleteButton');
         let selectedHour = null;
         
         // Часовой пояс
@@ -159,7 +190,19 @@
             tg.MainButton.show();
         }
         
+        // Обработчик клика на кнопку удаления
+        deleteButton.onclick = function() {
+            const data = {
+                local_hour: null,
+                msk_hour: null,
+                lang: lang
+            };
+            tg.sendData(JSON.stringify(data));
+        };
+        
         tg.onEvent('mainButtonClicked', function() {
+            if (selectedHour === null) return;
+            
             // Расчет МСК времени
             let utcHour = selectedHour + (offsetMin / 60);
             let mskHour = Math.floor(utcHour + 3);
